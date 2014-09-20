@@ -1,5 +1,4 @@
-/*
-   Copyright 2014 Andrew O'Neill
+/* Copyright 2014 Andrew O'Neill
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -39,14 +38,27 @@ var player = &entity{
 }
 
 // Graphics is the interface that will draw things to the screen.
+// TODO(foolusion@gmail.com): change this to be a graphics manager
+// and give the player graphics components.
 type Graphics interface {
+	Start() error
 	Draw(entity)
+	Shutdown()
 }
 
 // TermboxGraphics implements the graphics interface for termbox.
 type TermboxGraphics struct {
 	ch     rune
 	fg, bg termbox.Attribute
+}
+
+// Start implements the graphics interface.
+func (g TermboxGraphics) Start() error {
+	if err := termbox.Init(); err != nil {
+		termbox.Close()
+		return err
+	}
+	return nil
 }
 
 // Draw implements the graphics interface
@@ -60,6 +72,10 @@ func (g TermboxGraphics) Draw(e entity) {
 	}
 }
 
+func (g TermboxGraphics) Shutdown() {
+	termbox.Close()
+}
+
 func main() {
 	f, err := os.Create("log.txt")
 	defer f.Close()
@@ -68,10 +84,10 @@ func main() {
 	}
 	log.SetOutput(f)
 
-	if err := termbox.Init(); err != nil {
-		termbox.Close()
+	if err := player.graphics.Start(); err != nil {
 		log.Fatal(err)
 	}
+	//TODO(foolusion@gmail.com): Move this into an input manager interface
 	termbox.SetInputMode(termbox.InputAlt)
 
 	player.graphics.Draw(*player)
@@ -87,7 +103,7 @@ func main() {
 		log.Printf("%+v", e)
 		switch {
 		case e.Ch == 'q', e.Ch == 'Q':
-			termbox.Close()
+			player.graphics.Shutdown()
 			return
 		case e.Key == termbox.KeyEsc:
 			termbox.Close()

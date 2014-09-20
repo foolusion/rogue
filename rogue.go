@@ -24,17 +24,40 @@ import (
 )
 
 type entity struct {
-	x, y   int
+	x, y     int
+	graphics Graphics
+}
+
+var player = &entity{
+	x: 0,
+	y: 0,
+	graphics: TermboxGraphics{
+		ch: '@',
+		fg: termbox.ColorDefault,
+		bg: termbox.ColorDefault,
+	},
+}
+
+// Graphics is the interface that will draw things to the screen.
+type Graphics interface {
+	Draw(entity)
+}
+
+// TermboxGraphics implements the graphics interface for termbox.
+type TermboxGraphics struct {
 	ch     rune
 	fg, bg termbox.Attribute
 }
 
-var player = &entity{
-	x:  0,
-	y:  0,
-	ch: '@',
-	fg: termbox.ColorDefault,
-	bg: termbox.ColorDefault,
+// Draw implements the graphics interface
+func (g TermboxGraphics) Draw(e entity) {
+	if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
+		log.Fatal(err)
+	}
+	termbox.SetCell(e.x, e.y, g.ch, g.fg, g.bg)
+	if err := termbox.Flush(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {
@@ -51,7 +74,7 @@ func main() {
 	}
 	termbox.SetInputMode(termbox.InputAlt)
 
-	draw()
+	player.graphics.Draw(*player)
 
 	ch := make(chan termbox.Event)
 	go func() {
@@ -77,19 +100,7 @@ func main() {
 		case e.Key == termbox.KeyArrowRight:
 			doRightAction(player)
 		}
-		draw()
-	}
-}
-
-func draw() {
-	if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
-		termbox.Close()
-		log.Fatal(err)
-	}
-	termbox.SetCell(player.x, player.y, player.ch, player.fg, player.bg)
-	if err := termbox.Flush(); err != nil {
-		termbox.Close()
-		log.Fatal(err)
+		player.graphics.Draw(*player)
 	}
 }
 

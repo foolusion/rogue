@@ -24,36 +24,48 @@ import (
 
 type entity struct {
 	x, y     int
-	graphics Graphics
+	graphics GraphicsComponent
 }
 
 var player = &entity{
 	x: 0,
 	y: 0,
-	graphics: TermboxGraphics{
+	graphics: TermboxGraphicsComponent{
 		ch: '@',
 		fg: termbox.ColorDefault,
 		bg: termbox.ColorDefault,
 	},
 }
 
+type GraphicsComponent interface {
+	Draw(e *entity)
+}
+
+type TermboxGraphicsComponent struct {
+	ch     rune
+	fg, bg termbox.Attribute
+}
+
+func (t TermboxGraphicsComponent) Draw(e *entity) {
+	termbox.SetCell(e.x, e.y, t.ch, t.fg, t.bg)
+}
+
 // Graphics is the interface that will draw things to the screen.
 // TODO(foolusion@gmail.com): change this to be a graphics manager
 // and give the player graphics components.
 type Graphics interface {
-	Start() error
-	Draw(entity)
+	Init() error
+	Draw([]GraphicsComponent) error
 	Shutdown()
 }
 
 // TermboxGraphics implements the graphics interface for termbox.
 type TermboxGraphics struct {
-	ch     rune
-	fg, bg termbox.Attribute
+	gc []*entity
 }
 
 // Start implements the graphics interface.
-func (g TermboxGraphics) Start() error {
+func (t TermboxGraphics) Init() error {
 	if err := termbox.Init(); err != nil {
 		termbox.Close()
 		return err
@@ -62,17 +74,20 @@ func (g TermboxGraphics) Start() error {
 }
 
 // Draw implements the graphics interface
-func (g TermboxGraphics) Draw(e entity) {
+func (t TermboxGraphics) Draw() error {
 	if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
-		log.Fatal(err)
+		return err
 	}
-	termbox.SetCell(e.x, e.y, g.ch, g.fg, g.bg)
+	for _, v := range t.gc {
+		v.graphics.Draw(v)
+	}
 	if err := termbox.Flush(); err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
 
-func (g TermboxGraphics) Shutdown() {
+func (t TermboxGraphics) Shutdown() {
 	termbox.Close()
 }
 
@@ -84,13 +99,22 @@ func main() {
 	}
 	log.SetOutput(f)
 
-	if err := player.graphics.Start(); err != nil {
+	graphics := TermboxGraphics{
+		gc: []*entity{
+			player,
+		},
+	}
+	if err := graphics.Init(); err != nil {
 		log.Fatal(err)
 	}
+	defer graphics.Shutdown()
+
 	//TODO(foolusion@gmail.com): Move this into an input manager interface
 	termbox.SetInputMode(termbox.InputAlt)
 
-	player.graphics.Draw(*player)
+	if err := graphics.Draw(); err != nil {
+		log.Fatal(err)
+	}
 
 	ch := make(chan termbox.Event)
 	go func() {
@@ -103,7 +127,6 @@ func main() {
 		log.Printf("%+v", e)
 		switch {
 		case e.Ch == 'q', e.Ch == 'Q':
-			player.graphics.Shutdown()
 			return
 		case e.Key == termbox.KeyEsc:
 			termbox.Close()
@@ -116,7 +139,7 @@ func main() {
 		case e.Key == termbox.KeyArrowRight:
 			doRightAction(player)
 		}
-		player.graphics.Draw(*player)
+		graphics.Draw()
 	}
 }
 

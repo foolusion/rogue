@@ -2,15 +2,19 @@ package main
 
 import (
 	"log"
+	"math/rand"
 
 	"github.com/nsf/termbox-go"
 )
+
+var gEngine *engine
 
 type engine struct {
 	actors []*actor
 	player *actor
 	rmap   *rMap
 	done   bool
+	rng    *rand.Rand
 }
 
 func newEngine() *engine {
@@ -19,12 +23,12 @@ func newEngine() *engine {
 	}
 	termbox.SetInputMode(termbox.InputAlt)
 
-	e := &engine{done: false}
+	e := &engine{done: false, rng: rand.New(rand.NewSource(42))}
 	e.player = newActor(0, 0, '@', termbox.ColorDefault)
 	e.actors = append(e.actors, e.player)
 	e.actors = append(e.actors, newActor(10, 20, '@', termbox.ColorRed))
 	w, h := termbox.Size()
-	e.rmap = newRMap(w, h)
+	e.rmap = newRMap(e, w, h)
 	return e
 }
 

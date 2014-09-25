@@ -7,12 +7,12 @@ import (
 )
 
 func main() {
-	engine := newEngine()
-	defer engine.shutdown()
+	gEngine = newEngine()
+	defer gEngine.shutdown()
 
-	for !engine.done {
-		engine.update()
-		engine.render()
+	for !gEngine.done {
+		gEngine.update()
+		gEngine.render()
 		if err := termbox.Flush(); err != nil {
 			log.Fatal(err)
 		}
